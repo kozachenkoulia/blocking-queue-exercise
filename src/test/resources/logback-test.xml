@@ -6,7 +6,11 @@
         <!--<file>tests.log</file>-->
     </appender>
 
-    <root level="error">
+    <root level="info">
         <appender-ref ref="STDOUT" />
     </root>
+
+    <logger name="com.epam.rd.autotask.threads.batchprocessor.MessagePreprocessorTest" level="info"/>
+<!--    <logger name="com.epam.rd.autotask.threads.batchprocessor.MessagePreprocessor" level="debug"/>-->
+
 </configuration>

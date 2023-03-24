@@ -9,14 +9,15 @@ import java.util.function.UnaryOperator;
 /**
  *
  */
-public class BatchJobProcessingSubsystem<T> {
+public class MessagePreprocessor {
+
     // place your code here
 
-    public BatchJobProcessingSubsystem(Collection<T> initial, List<UnaryOperator<T>> functions) {
+    public MessagePreprocessor(Collection<String> initial, List<UnaryOperator<String>> functions) {
         // place your code here
     }
 
-    public List<BlockingQueue<T>> getState() {
+    List<BlockingQueue<String>> getState() {
         // place your code here
         return null;
     }
@@ -32,11 +33,11 @@ public class BatchJobProcessingSubsystem<T> {
      * @return Optional.empty() if not all jobs have been processed
      * and processor isn't forcibly stopped, otherwise it stops all
      * running operations and returns a collection of processed jobs
-     * @see BatchJobProcessingSubsystem#stop()
+     * @see MessagePreprocessor#stop()
      */
-    public Optional<Collection<? extends T>> getOutput() {
+    public Optional<Collection<? extends String>> getResult() {
         // place your code here
-        return null;
+        return Optional.empty();
     }
 
 

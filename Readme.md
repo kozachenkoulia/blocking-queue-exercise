@@ -1,86 +1,154 @@
-# Blocking queues
+# Exercise 1:
 
-The purpose of this task is to familiarize you with the concepts of blocking
-queues and their use for thread interaction.
+The purpose of this exercise is to practice using the blocking queues as
+a common resource for threads while avoiding explicit threads
+synchronization.
 
-Duration _1 hour_.
+Duration: *1 hour*.
 
 ## Description
 
-In this task you need to implement the "_Batch Job Processing Subsystem_",
-which in this task will wash the plates. `BatchJobProcessingSubsystem`
-takes in the constructor a `source` Collection with objects to process
-(_jobs_) and a sequence of functions to be performed for jobs.
-Each job from the `source` Collection must be processed
-by all functions in the list. The `source` Collection is considered as
-a _batch_ and is not changed.
+The processing of texts in natural language for the purposes of its
+analysis often requires preliminary preparation of this text. As a rule,
+such preparation of the text consists of several steps. In this task,
+need to prepare a set of messages received from a social network for
+analysis, for example, on the degree of their aggressiveness.
+Preparation may consist, for example, of the following steps:
 
-`BatchJobProcessingSubsystem` creates as many `Operation` threads
-as functions in the list. Each `Operation` applies only one function
-from the list to each object.
+-   Remove punctuation marks
+-   Remove URL
+-   Convert characters to lowercase
+-   Splitting into tokens
+-   Etc.
 
-Each `Operation` has two queues. It takes a job from `source` queue
-and puts it, after applying the given function, in the `destination`
-queue, which is the source of the next operation, and so on.
+Preparing a large set of messages can be time-consuming if it is
+processed sequentially, since each step is to perform some operation on
+all messages. For a set of steps, the order in which they are performed
+must be specified. However, to reduce preparation time, all steps can be
+performed in parallel. In this case, each step is processed in a
+separate thread. Each thread takes a message from one queue, performs an
+operation, and puts the result into another queue. Message queues for
+threads are organized in such a way that the output queue of the
+previous step is the input queue for the next step. The output queue of
+the last step stores fully prepared messages.
 
-> source --> OP1 --> queue1 --> OP2 --> queue2 --> ... --> OPn --> destination
+For example:
 
-Proceed the `BatchJobProcessingSubsystem` class that takes in the
-constructor a `Collection` of objects to process and `List<UnaryOperator<T>>`.
-For each function in the list it (constructor) creates the separate
-`Operation` object (see below) and all necessary queues.
+```
+source --> OP1 --> queue1 --> OP2 --> queue2 --> ... --> OPn --> destination
+```
 
-The methods of the class:
+where *source* is the original collection of text messages, *OP* is the
+operations, and *destination* is the resulting queue that contains the
+processed messages.
 
-* `public void start()` \
-  starts all `Operation` threads.
-* `public void stop()` \
-  Stops all threads. The threads must interrupt immediately
-  after finishing current processing object. It must wait until 
-  all threads are stopped.
-* `public Optional<Collection<T>> getOutput()` \
-  returns `destinationQueue` of the last operation as immutable Collection
-  wrapped by `Optional` if there is no more job to process or the
-  operation threads forcibly stopped, otherwise `Optional.empty()`.
-  The `destinationQueue` of `BatchJobProcessingSubsystem` is the 
-  `destination` queue of the last `Operation`.
-* `List<BlockingQueue<T>> getState()` \
-  returns a list, that contains the source and destination queues of 
-  `BatchJobProcessingSubsystem`. Because it package-private it's 
-  guaranteed that the queues will not be changed by other classes.
+You are given a description of the following classes:
 
-`Operation` class is a thread. It takes in the constructor the `source` queue,
-`destination` queue and one `function`. In general, the processing algorithm is
-as follows:
+- The `Transformer` class is a thread and is a preprocessing step.
+- The `MessagePreprocessor` class describes the process of preparing
+  a set of messages for further analysis. Its task is to create and
+  manage threads that perform preprocessing steps.
+- The `Demo` class demonstrates the use of the
+  `MessagePreprocessor` class and defines operation to be performed
+  on each step.
 
-1. take the next job from the `sourceQueue`;
-2. apply the given function;
-3. put the job in the `destinationQueue`.
+First, proceed to the `Transformer` class and implement its content:
 
-The algorithm is processed in a loop until the thread is interrupted.
+- `public Transformer(UnaryOperator<String> op,
+  BlockingQueue<String> sourceQueue, BlockingQueue<String>
+  destinationQueue)`
+  Initializes the `Transformer` object by the parameters: `op` is
+  the operation to be performed on each message; `sourceQueue` is the
+  incoming message queue; `destinationQueue` is the queue of processed
+  messages
 
-`Plate` class objects are the jobs to be processed. It has an `id` 
-and `state`. You must not change this class. \
-In this task each function just calls `Plate#nextState()` for each 
-processed job.
+- `public void run()` \
+  Performs the specified operation on each message selected from the
+  source queue and puts the result into the output queue.
 
-### Details
+Then, proceed to the `MessagePreprocessor` class and implement its
+content:
 
-`BatchJobProcessingSubsystem` constructor must throw `NullPointerException`
-if any of parameters is null and throw `IllegalArgumentException` if the
-source queue or functions list are empty.
+- `public MessagePreprocessor(Collection<String> initial,
+  List<UnaryOperator<String>> functions) \
+  `Initializes the `MessagePreprocessor` object using parameters as
+  follows: creates queues that are 1 more than the number of received
+  operations; creates threads for each received operation; sets the
+  completion flag to `false`.
+- `public void start()` \
+  Starts all Transformer threads
+- `public void stop()` \
+  Sends interrupt requests to the `Transformer` threads, and after
+  they stop, sets the completion flag to `true`
+- `public Optional<Collection<? extends String>> getResult()` \
+  Returns `Optional.empty()` if not all messages have been processed
+  and the `MessagePreprocessor` has not been forcibly stopped by a
+  call to the `stop()` method. Otherwise, returns the set of
+  processed messages as an immutable collection wrapped in an
+  `Optional`.
+- `List<BlockingQueue<String>> getState()` \
+  Returns a list, that contains all `MessagePreprocessor` queues and
+  is uses for monitoring purposes
 
-`Operation` constructor must throw `NullPointerException` if any of the
-parameters is null.
+Finally, proceed to `Demo` class and implement four operations that
+describe the steps for preprocessing a set of messages:
+  
+- `public static UnaryOperator<String> trimSpaces` \
+  Replaces one or more whitespace characters by one space.
+- `public static UnaryOperator<String> removeLinks` \
+  Removes continuous sequences of non-whitespace characters beginning
+  with 'http://' or 'https://'
+- `public static UnaryOperator<String> toLower` \
+  Converts all the characters of the message to lower case
+- `public static UnaryOperator<String> removePunctuation` \
+  Removes all characters of POSIX punctuation character class
 
->All queues created by `BatchJobProcessingSubsystem` must 
-always be limited in capacity. \
-The 'source' and 'destination' queues 
-must be limited to the size of the 'source' collection. \
-Intermediate queues must be limited to 1/2 the size of the 'source' 
-collection.
+*Note*: The `main()` method of the `Demo` class has an
+implementation and demonstrates the use of the `MessagePreprocessor`
+class.
+
+### **Details**
+
+-   The `Transformer` constructor must throw `NullPointerException`
+    if any of the parameters is `null`.
+-   The `Transformer` thread runs until it receives an interrupt
+    request or the 'empty' message. The 'empty' message is a marker
+    that all messages have been processed by the thread. The thread must
+    put the \'empty\' message on the output queue and stop.
+-   The `MessagePreprocessor` constructor must throw a
+    `NullPointerException` if any of the parameters is `null` and
+    throw an `IllegalArgumentException` if any of the parameters are
+    empty.
+-   The `MessagePreprocessor` constructor considers the following when
+    creating queues:
+    - The first queue receives source messages
+    - The last queue is for the fully processed messages
+    - The rest queues are an intermediate
+    - Each queue must be limited in capacity. The first and last queue
+      must have a capacity equal to the size of the source collection of
+      messages, and the intermediate queues must have a capacity equal
+      to half the source collection size.
+-   For correct interaction between threads of the `Transformer` type,
+    the message queues must be one of the types of blocking queues.
+-   The `stop()` method of the `MessagePreprocessor` class must
+    ensure that all threads are stopped. Threads must interrupt
+    immediately after processing the current message.
+-   The `getState()` method has package-private access, the queues are
+    guaranteed not to be modified by other classes.
 
 ### Restrictions
 
-You must not use any synchronization objects like locks, synchronized 
-keyword etc.
+You must not use synchronization based on locks and `synchronized`
+keyword.
+
+### Example
+
+Suppose you have a message like the following:
+
+>`Logback-classic will automatically ask the web-server to install a LogbackServletContainerInitializer (https://logback.qos.ch/apidocs/ch/qos/logback/classic/servlet/LogbackServletContainerInitializer.html) implementing the ServletContainerInitializer interface (available in servlet-api 3.x and later) .
+This initializer will in turn install and instance of LogbackServletContextListener (https://logback.qos.ch/apidocs/ch/qos/logback/classic/servlet/LogbackServletContextListener.html) . This listener will stop the current logback-classic context when the web-app is stopped or reloaded.`
+
+The result of its processing in the ordering as it denoted in `Demo.main`
+will be as follows:
+
+>`logback classic will automatically ask the web server to install a logbackservletcontainerinitializer implementing the servletcontainerinitializer interface available in servlet api 3 x and later this initializer will in turn install and instance of logbackservletcontextlistener this listener will stop the current logback classic context when the web app is stopped or reloaded`
