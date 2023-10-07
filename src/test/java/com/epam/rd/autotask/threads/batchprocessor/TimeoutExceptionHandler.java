@@ -11,6 +11,7 @@ import java.time.Duration;
 public class TimeoutExceptionHandler implements InvocationInterceptor {
     @Override
     public void interceptTestMethod(Invocation<Void> invocation, ReflectiveInvocationContext<Method> invocationContext, ExtensionContext extensionContext) {
-        Assertions.assertTimeoutPreemptively(Duration.ofSeconds(5), invocation::proceed);
+        Assertions.assertTimeoutPreemptively(Duration.ofSeconds(5), invocation::proceed,
+                "Probably getResult() doesn't work properly");
     }
 }

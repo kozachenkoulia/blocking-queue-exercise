@@ -27,12 +27,13 @@ class MessagePreprocessorTest {
     static final Logger log = LoggerFactory.getLogger(MessagePreprocessorTest.class);
 
     private static final String FAIL_MESSAGE = "Something went wrong";
-    private static final long DEFAULT_TIMEOUT = 10L;
+    private static final long DEFAULT_TIMEOUT = 20L;
+    private static final long DEFAULT_OP_TIMEOUT = 1L;
     private static final TimeUnit DEFAULT_TIMEUNIT = TimeUnit.SECONDS;
     private static final Duration DEFAULT_DURATION = Duration.ofSeconds(DEFAULT_TIMEOUT);
-    public static final String DOUBLE_EOL = "((\r\n)|(\n\n)){2}";
+    public static final String DOUBLE_EOL = "((\r\n)|(\n)){2}";
 
-    static UnaryOperator<String> removeLinks = m -> "<" + m + ">";
+    static UnaryOperator<String> removeLinks = m -> { pause(DEFAULT_OP_TIMEOUT); return "<" + m + ">"; };
     static UnaryOperator<String> toLower = m -> "#" + m + "#";
     static UnaryOperator<String> removePunctuation = m -> "!" + m + "!";
     static UnaryOperator<String> trimSpaces = m -> "_" + m + "_";
@@ -40,6 +41,7 @@ class MessagePreprocessorTest {
     static List<UnaryOperator<String>> functions =
             List.of(removeLinks, toLower, removePunctuation, trimSpaces);
     static List<String> data = List.of("A", "B", "C", "D", "");
+
     static ExecutorService pool = Executors.newSingleThreadExecutor(new ThreadFactory() {
         @Override
         public Thread newThread(Runnable r) {
@@ -50,7 +52,6 @@ class MessagePreprocessorTest {
         }
     });
     static Thread.UncaughtExceptionHandler eh = (t, e) -> {
-        System.out.println("UncaughtExceptionHandler");
         fail("You must choose appropriate method to add and get " +
                 "jobs in 'Operation'", e);
         throw new RuntimeException("You must choose appropriate method to add and get " +
@@ -61,6 +62,7 @@ class MessagePreprocessorTest {
     void startUp() {
         try {
             pool.submit(() -> {/* empty job to start a thread in the pool */}).get();
+            log.debug("Active count: {}, Running threads: {}", Thread.activeCount(), Thread.getAllStackTraces().keySet());
         } catch (InterruptedException | ExecutionException e) {
             fail(FAIL_MESSAGE);
         }
@@ -70,7 +72,7 @@ class MessagePreprocessorTest {
         return Stream.of(
                 Arguments.of(NullPointerException.class, null, List.of(removeLinks)),
                 Arguments.of(NullPointerException.class, data, null),
-                Arguments.of(IllegalArgumentException.class, List.of("A", "B", "C", "D", ""), List.of()),
+                Arguments.of(IllegalArgumentException.class, data, List.of()),
                 Arguments.of(IllegalArgumentException.class, List.of(), List.of(toLower))
         );
     }
@@ -81,7 +83,7 @@ class MessagePreprocessorTest {
                                     Collection<String> queue,
                                     List<UnaryOperator<String>> func) {
         assertThrows(ex, () -> new MessagePreprocessor(queue, func),
-                "Constructor should throw an exception if for incorrect parameters");
+                "Constructor should throw an exception for incorrect parameters");
     }
 
     @Test
@@ -101,7 +103,7 @@ class MessagePreprocessorTest {
         try {
             int activeCount = Thread.activeCount();
             MessagePreprocessor processor = pool.submit(
-                            () -> new MessagePreprocessor(data, functions))
+                            () -> new MessagePreprocessor(List.of("A", "B", "C"), functions))
                     .get(DEFAULT_TIMEOUT, DEFAULT_TIMEUNIT);
             long actual = Thread.activeCount();
             assertEquals(activeCount, actual,
@@ -109,14 +111,15 @@ class MessagePreprocessorTest {
                             "method is called");
 
             assert processor != null;
-            activeCount = Thread.activeCount();
-            log.debug("Active count: {}", (activeCount + functions.size()));
+            int beforeStartCount = Thread.activeCount();
+            log.debug("Active count: {}", beforeStartCount);
             pool.submit(processor::start).get(DEFAULT_TIMEOUT, DEFAULT_TIMEUNIT);
-            actual = Thread.activeCount();
-            log.debug("Actual count: {}", actual);
-            assertEquals(activeCount + functions.size(), actual,
+            int afterStartCount = Thread.activeCount();
+            log.debug("Actual count: {}", afterStartCount);
+            assertEquals(beforeStartCount + functions.size(), afterStartCount,
                     "Threads must not be started until 'start()' " +
-                            "method is called");
+                            "method is called or probably you finish " +
+                            "operation threads without waiting 'empty' message.");
         } catch (InterruptedException e) {
             fail(FAIL_MESSAGE);
         } catch (ExecutionException e) {
@@ -221,6 +224,7 @@ class MessagePreprocessorTest {
         }
     }
 
+    @ExtendWith(TimeoutExceptionHandler.class)
     @Timeout(5)
     @Test
     void testStopIfAllJobsProcessed() {
@@ -260,7 +264,7 @@ class MessagePreprocessorTest {
         }
     }
 
-    @ExtendWith(ExceptionHandler.class)
+    @ExtendWith({ExceptionHandler.class, TimeoutExceptionHandler.class})
     @Timeout(value = 5)
     @Test
     void testAppropriateMethodGetAddJobs() {
@@ -272,16 +276,14 @@ class MessagePreprocessorTest {
         Thread t = new Thread(() -> {
             MessagePreprocessor processor = new MessagePreprocessor(data, funcs);
             processor.start();
-            while (processor.getResult().isEmpty()) {
-                pause(10);
-            }
+            waitResult(processor);
             processor.stop();
         });
         t.start();
         try {
             t.join();
         } catch (InterruptedException e) {
-            fail(e);
+            fail("Unexpected interruption. Probably you don't correctly handle threads interruption.", e);
         }
     }
 
@@ -292,7 +294,7 @@ class MessagePreprocessorTest {
         MessagePreprocessor processor =
                 new MessagePreprocessor(list, functions);
         List<BlockingQueue<String>> state = processor.getState();
-        assertNotNull(state);
+        assertNotNull(state, "MessagePreprocessor must always return own state.");
         BlockingQueue<String> source = state.get(0);
         BlockingQueue<String> dest = state.get(state.size() - 1);
         assertEquals(size, source.size(),
@@ -318,6 +320,7 @@ class MessagePreprocessorTest {
         assertEquals(size, dest.remainingCapacity());
     }
 
+    @ExtendWith(TimeoutExceptionHandler.class)
     @Timeout(5)
     @Test
     void testQueuesCapacity() {
@@ -369,9 +372,7 @@ class MessagePreprocessorTest {
                                 s -> "_" + s + "_"
                         ));
         processor.start();
-        while (processor.getResult().isEmpty()) {
-            pause(1);
-        }
+        waitResult(processor);
         processor.stop();
         Collection<? extends String> actual = processor.getResult().get();
         List<String> expected = List.of(
@@ -389,9 +390,7 @@ class MessagePreprocessorTest {
                         List.of("A", "B", "C", ""),
                         List.of(s -> "_" + s + "_"));
         processor.start();
-        while (processor.getResult().isEmpty()) {
-            pause(1);
-        }
+        waitResult(processor);
         processor.stop();
         Collection<? extends String> actual = processor.getResult().get();
         assertThrows(UnsupportedOperationException.class, () -> actual.remove("_A_"));
@@ -399,7 +398,7 @@ class MessagePreprocessorTest {
 
     // test correctness of message transforming by operations
     @Timeout(5)
-    @ExtendWith(ExceptionHandler.class)
+    @ExtendWith(TimeoutExceptionHandler.class)
     @Test
     void testTransforming() {
         try {
@@ -408,7 +407,7 @@ class MessagePreprocessorTest {
             messages.add("");
 
             MessagePreprocessor preprocessor = new MessagePreprocessor(messages,
-                    List.of(Demo.removeLinks, Demo.toLower, Demo.removePunctuation, Demo.trimSpaces));
+                        List.of(Demo.removeLinks, Demo.toLower, Demo.removePunctuation, Demo.trimSpaces));
             preprocessor.start();
             waitResult(preprocessor);
             Collection<? extends String> actual = preprocessor.getResult().get();
@@ -419,14 +418,16 @@ class MessagePreprocessorTest {
 
         } catch (IOException e) {
             fail("Something went wrong. You must not change tests and their resources.", e);
-        } catch (InterruptedException e) {
-            fail("Something went wrong.", e);
+        }catch (NullPointerException e) {
+            fail("Probably you didn't implement operations", e);
         }
     }
 
-    private static void waitResult(MessagePreprocessor preprocessor) throws InterruptedException {
-        while (preprocessor.getResult().equals(Optional.empty())) {
-            Thread.sleep(1);
+    private static void waitResult(MessagePreprocessor processor){
+        log.info("Start wait the result");
+        while (processor.getResult().isEmpty()) {
+            pause(1);
         }
+        log.info("Finish wait the result");
     }
 }

@@ -7,12 +7,12 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 public class ExceptionHandler implements TestExecutionExceptionHandler {
 
-    public static final String FAIL_MSG = "You must properly place messages to the destination queue in transformer";
+    public static final String FAIL_MSG = "error message";
 
     @Override
-    public void handleTestExecutionException(ExtensionContext ctx, Throwable throwable) throws Throwable {
-        ctx.publishReportEntry(FAIL_MSG,
-                throwable.getMessage());
-        fail(FAIL_MSG, throwable);
+    public void handleTestExecutionException(ExtensionContext ctx, Throwable throwable) {
+        String message = throwable.getMessage();
+        ctx.publishReportEntry(message);
+        fail(message, throwable);
     }
 }
