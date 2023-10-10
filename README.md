@@ -1,12 +1,12 @@
 # Text Preparation
 
-The purpose of this task is to give you some practice using blocking queues as a common resource for threads while avoiding synchronizing threads explicitly.  
+The purpose of this exercise is to practice using blocking queues as a common resource for threads while avoiding synchronizing threads explicitly.  
 
 Duration: *1 hour 30 minutes*.
 
 ## Description
 
-Processing texts in natural language for analysis often requires preliminary preparation of the text. As a rule, this involves several steps. In this task, you wiil prepare a set of messages received from a social network for analysis – for example, their degree of their aggressiveness. Preparation might involve the following steps:
+Processing texts in natural language for analysis often requires preliminary preparation of the text. As a rule, this involves several steps. In this task, you will prepare a set of messages received from a social network for analysis – for example, their degree of their aggressiveness. Preparation might involve the following steps:
 
 -   Remove punctuation marks
 -   Remove URL
@@ -23,12 +23,12 @@ For example:
 source --> OP1 --> queue1 --> OP2 --> queue2 --> ... --> OPn --> destination
 ```
 
-Here, _source_ is the original collection of dirty plates, _OP_ refers to operations, and _destination_ is the resulting queue that contains the clean and dry plates.
+Here, _source_ is the original collection of text messages, _OP_ refers to operations, and _destination_ is the resulting queue that contains the processed messages.
 
 You are given a description of the following classes:
 
 - The `Transformer` class is a thread and a preprocessing step.
-- The `MessagePreprocessor` class describes the process of pre-preparing a set of messages for further analysis. Its task is to create and manage threads that perform preprocessing steps.  
+- The `MessagePreprocessor` class describes the process of preparing a set of messages for further analysis. Its task is to create and manage threads that perform preprocessing steps.  
 - The `Demo` class demonstrates the use of the `MessagePreprocessor` class and defines the operation to be performed during each step.
 
 First, proceed to the `Transformer` class and implement its content:
@@ -40,7 +40,7 @@ Performs the specified operation on each message selected from the source queue 
 
 Then, proceed to the MessagePreprocessor class and implement its content:  
 - `public MessagePreprocessor(Collection<String> initial, List<UnaryOperator<String>> functions)`  
-Initializes the `MessagePreprocessor` object using parameters as follows: creates queues that are 1 more than the number of received operations; creates threads for each received operation; sets the completion flag to `false`. 
+Initializes the `MessagePreprocessor` object using parameters as follows: creates queues that are one more than the number of received operations; creates threads for each received operation; sets the completion flag to `false`. 
 - `public void start()`  
 Starts all Transformer threads
 - `public void stop()`  
