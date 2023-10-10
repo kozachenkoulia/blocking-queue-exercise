@@ -224,7 +224,7 @@ class MessagePreprocessorTest {
         }
     }
 
-    @ExtendWith(TimeoutExceptionHandler.class)
+    @ExtendWith(com.epam.rd.autotask.threads.batchprocessor.TimeoutExceptionHandler.class)
     @Timeout(5)
     @Test
     void testStopIfAllJobsProcessed() {
@@ -264,7 +264,7 @@ class MessagePreprocessorTest {
         }
     }
 
-    @ExtendWith({ExceptionHandler.class, TimeoutExceptionHandler.class})
+    @ExtendWith({ExceptionHandler.class, com.epam.rd.autotask.threads.batchprocessor.TimeoutExceptionHandler.class})
     @Timeout(value = 5)
     @Test
     void testAppropriateMethodGetAddJobs() {
@@ -320,7 +320,7 @@ class MessagePreprocessorTest {
         assertEquals(size, dest.remainingCapacity());
     }
 
-    @ExtendWith(TimeoutExceptionHandler.class)
+    @ExtendWith(com.epam.rd.autotask.threads.batchprocessor.TimeoutExceptionHandler.class)
     @Timeout(5)
     @Test
     void testQueuesCapacity() {
@@ -359,7 +359,7 @@ class MessagePreprocessorTest {
                 "Destination queue must be limited in capacity.");
     }
 
-    @ExtendWith(TimeoutExceptionHandler.class)
+    @ExtendWith(com.epam.rd.autotask.threads.batchprocessor.TimeoutExceptionHandler.class)
     @Timeout(value = 5)
     @Test
     void testCorrectOrderingOfProcessing2() {
@@ -381,7 +381,7 @@ class MessagePreprocessorTest {
         assertIterableEquals(expected, actual);
     }
 
-    @ExtendWith(TimeoutExceptionHandler.class)
+    @ExtendWith(com.epam.rd.autotask.threads.batchprocessor.TimeoutExceptionHandler.class)
     @Timeout(5)
     @Test
     void testUnmodifiableOutput() {
