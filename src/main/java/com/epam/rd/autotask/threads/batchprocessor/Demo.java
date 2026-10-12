@@ -25,10 +25,13 @@ public class Demo {
             "ServletContextListener.html) . This listener will stop the current " +
             "logback-classic context when the web-app is stopped or reloaded.";
 
-    public static UnaryOperator<String> trimSpaces;  // place your code here
-    public static UnaryOperator<String> removeLinks;  // place your code here
-    public static UnaryOperator<String> toLower;  // place your code here
-    public static UnaryOperator<String> removePunctuation;  // place your code here
+    public static UnaryOperator<String> trimSpaces =
+            s -> s.replaceAll("\\s+", " ").trim();
+    public static UnaryOperator<String> removeLinks =
+            s -> s.replaceAll("https?://\\S+|www\\.\\S+", "");
+    public static UnaryOperator<String> toLower = String::toLowerCase;
+    public static UnaryOperator<String> removePunctuation =
+            s -> s.replaceAll("\\p{Punct}", " ");
 
     public static void main(String[] args) throws InterruptedException {
         List<String> messages = List.of(msg1, msg2, "");
